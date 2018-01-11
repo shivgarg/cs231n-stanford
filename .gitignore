@@ -3,3 +3,8 @@
 **/.env
 **/.venv
 **/.ipynb_checkpoints
+assignment3/cs231n/datasets/MNIST_data/t10k-images-idx3-ubyte.gz
+assignment3/cs231n/datasets/MNIST_data/t10k-labels-idx1-ubyte.gz
+assignment3/cs231n/datasets/MNIST_data/train-images-idx3-ubyte.gz
+assignment3/cs231n/datasets/MNIST_data/train-labels-idx1-ubyte.gz
+assignment3/cs231n/datasets
