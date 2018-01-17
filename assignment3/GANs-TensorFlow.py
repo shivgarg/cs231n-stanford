@@ -113,12 +113,18 @@ def sample_noise_cifar(batch_size, dim):
     ret = tf.random_normal([batch_size, dim])
     return ret
 
-def get_CIFAR10_data(num_training=49000, num_validation=1000, num_test=10000):
+
+mean_image = None
+std_image = None
+
+def get_CIFAR10_data():
     """
     Load the CIFAR-10 dataset from disk and perform preprocessing to prepare
     it for the two-layer neural net classifier. These are the same steps as
     we used for the SVM, but condensed to a single function.  
     """
+    global mean_image
+    global std_image
     # Load the raw CIFAR-10 data
     cifar10_dir = 'cs231n/datasets/cifar-10-batches-py'
     X_train, _, X_test, _ = load_CIFAR10(cifar10_dir)
@@ -128,7 +134,6 @@ def get_CIFAR10_data(num_training=49000, num_validation=1000, num_test=10000):
     std_image = np.std(X, axis=0)
     X -= mean_image
     X /= std_image
-
     return X
 
 
@@ -143,7 +148,7 @@ def generator(z):
     - z: TensorFlow Tensor of random noise with shape [batch_size, noise_dim]
     
     Returns:
-    TensorFlow Tensor of generated images, with shape [batch_size, 784].
+    TensorFlow Tensor of generated images, with shape [batch_size, 32, 32, 3].
     """
     with tf.variable_scope("generator"):
         img = tf.layers.dense(z,4*4*512,activation=tf.nn.relu,use_bias=True)
@@ -165,14 +170,14 @@ def discriminator(x):
     """Compute discriminator score for a batch of input images.
     
     Inputs:
-    - x: TensorFlow Tensor of flattened input images, shape [batch_size, 784]
+    - x: TensorFlow Tensor of input images, shape [batch_size, 32, ,32, 3]
     
     Returns:
     TensorFlow Tensor with shape [batch_size, 1], containing the score 
     for an image being real for each input image.
     """
     with tf.variable_scope("discriminator"):
-        logits = tf.layers.dropout(y,rate=0.2)
+        logits = tf.layers.dropout(x,rate=0.2)
         logits = leaky_relu(tf.layers.conv2d(logits,96,3,padding='same'),0.01)
         logits = leaky_relu(tf.layers.conv2d(logits,96,3,padding='same'),0.01)
         logits = leaky_relu(tf.layers.conv2d(logits,96,3,strides=2,padding='same'),0.01)
@@ -218,9 +223,11 @@ D_loss, G_loss = gan_loss(logits_real, logits_fake)
 D_train_step = D_solver.minimize(D_loss, var_list=D_vars)
 G_train_step = G_solver.minimize(G_loss, var_list=G_vars)
 D_extra_step = tf.get_collection(tf.GraphKeys.UPDATE_OPS,'discriminator')
-G_extra_step = tf.get_collection(tf.GraphKeys.UPDATE_OPS,'generator')
+)G_extra_step = tf.get_collection(tf.GraphKeys.UPDATE_OPS,'generator')
 
 def show_images_cifar(images,iter):
+    global mean_image
+    global std_image
     #images = np.reshape(images, [images.shape[0], -1])  # images reshape to (batch_size, D)
     sqrtn = int(np.ceil(np.sqrt(images.shape[0])))
     #sqrtimg = int(np.ceil(np.sqrt(images.shape[1])/3))
@@ -230,6 +237,8 @@ def show_images_cifar(images,iter):
     gs.update(wspace=0.05, hspace=0.05)
 
     for i, img in enumerate(images):
+        img *= std_image
+        img += mean_image
         ax = plt.subplot(gs[i])
         plt.axis('off')
         ax.set_xticklabels([])
@@ -263,7 +272,6 @@ def run_cifar_gan(sess, G_train_step, G_loss, D_train_step, D_loss, G_extra_step
             samples = sess.run(G_sample)
             fig = show_images_cifar(samples[:16],it/show_every)
             plt.show()
-            print()
         # run a batch of data through the network
         minibatch = X[np.random.randint(0,X.shape[0],batch_size)]
         _, D_loss_curr = sess.run([D_train_step, D_loss], feed_dict={x: minibatch})
