@@ -130,12 +130,17 @@ def get_CIFAR10_data():
     X_train, _, X_test, _ = load_CIFAR10(cifar10_dir)
     X = np.concatenate((X_train, X_test), axis =0)
     # Normalize the data: subtract the mean image
-    mean_image = np.mean(X, axis=0)
-    std_image = np.std(X, axis=0)
-    X -= mean_image
-    X /= std_image
+#    mean_image = np.mean(X, axis=0)
+#    std_image = np.std(X, axis=0)
+#    X -= mean_image
+#    X /= std_image
     return X
 
+
+def process_image(X):
+	X -= 128
+	X /= 128
+	return X
 
 # Invoke the above function to get our data.
 X = get_CIFAR10_data()
@@ -199,7 +204,7 @@ tf.reset_default_graph()
 
 batch_size = 128
 # our noise dimension
-noise_dim = 96*3
+noise_dim = 96
 
 # placeholders for images from the training dataset
 x = tf.placeholder(tf.float32, [None, 32,32,3])
@@ -209,7 +214,7 @@ G_sample = generator(z)
 
 with tf.variable_scope("") as scope:
     #scale images to be -1 to 1
-    logits_real = discriminator(x)
+    logits_real = discriminator(process_image(x))
     # Re-use discriminator weights on new inputs
     scope.reuse_variables()
     logits_fake = discriminator(G_sample)
@@ -223,7 +228,7 @@ D_loss, G_loss = gan_loss(logits_real, logits_fake)
 D_train_step = D_solver.minimize(D_loss, var_list=D_vars)
 G_train_step = G_solver.minimize(G_loss, var_list=G_vars)
 D_extra_step = tf.get_collection(tf.GraphKeys.UPDATE_OPS,'discriminator')
-)G_extra_step = tf.get_collection(tf.GraphKeys.UPDATE_OPS,'generator')
+G_extra_step = tf.get_collection(tf.GraphKeys.UPDATE_OPS,'generator')
 
 def show_images_cifar(images,iter):
     global mean_image
@@ -237,8 +242,8 @@ def show_images_cifar(images,iter):
     gs.update(wspace=0.05, hspace=0.05)
 
     for i, img in enumerate(images):
-        img *= std_image
-        img += mean_image
+#        img *= std_image
+#        img += mean_image
         ax = plt.subplot(gs[i])
         plt.axis('off')
         ax.set_xticklabels([])
