@@ -1,6 +1,9 @@
 from __future__ import print_function, division
 import tensorflow as tf
 import numpy as np
+from cs231n.data_utils import load_CIFAR10
+import matplotlib
+matplotlib.use('Agg')
 
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
@@ -8,17 +11,6 @@ import matplotlib.gridspec as gridspec
 plt.rcParams['figure.figsize'] = (10.0, 8.0) # set default size of plots
 plt.rcParams['image.interpolation'] = 'nearest'
 plt.rcParams['image.cmap'] = 'gray'
-
-# A bunch of utility functions
-import imageio
-
-def rel_error(x,y):
-    return np.max(np.abs(x - y) / (np.maximum(1e-8, np.abs(x) + np.abs(y))))
-
-def count_params():
-    """Count the number of parameters in the current TensorFlow graph """
-    param_count = np.sum([np.prod(x.get_shape().as_list()) for x in tf.global_variables()])
-    return param_count
 
 
 def get_session():
@@ -79,26 +71,6 @@ def get_solvers(learning_rate=1e-3, beta1=0.5):
     return D_solver, G_solver
 
 
-def lsgan_loss(score_real, score_fake):
-    """Compute the Least Squares GAN loss.
-    
-    Inputs:
-    - score_real: Tensor, shape [batch_size, 1], output of discriminator
-        score for each real image
-    - score_fake: Tensor, shape[batch_size, 1], output of discriminator
-        score for each fake image    
-          
-    Returns:
-    - D_loss: discriminator loss scalar
-    - G_loss: generator loss scalar
-    """
-    # TODO: compute D_loss and G_loss
-    D_loss = tf.reduce_mean(tf.pow(score_real-1,2))/2 + tf.reduce_mean(tf.pow(score_fake,2))/2
-    G_loss = tf.reduce_mean(tf.pow(score_fake-1,2))/2
-    return D_loss, G_loss
-
-
-from cs231n.data_utils import load_CIFAR10
 
 def sample_noise_cifar(batch_size, dim):
     """Generate random uniform noise from -1 to 1.
@@ -114,26 +86,16 @@ def sample_noise_cifar(batch_size, dim):
     return ret
 
 
-mean_image = None
-std_image = None
-
 def get_CIFAR10_data():
     """
     Load the CIFAR-10 dataset from disk and perform preprocessing to prepare
     it for the two-layer neural net classifier. These are the same steps as
     we used for the SVM, but condensed to a single function.  
     """
-    global mean_image
-    global std_image
     # Load the raw CIFAR-10 data
     cifar10_dir = 'cs231n/datasets/cifar-10-batches-py'
     X_train, _, X_test, _ = load_CIFAR10(cifar10_dir)
     X = np.concatenate((X_train, X_test), axis =0)
-    # Normalize the data: subtract the mean image
-#    mean_image = np.mean(X, axis=0)
-#    std_image = np.std(X, axis=0)
-#    X -= mean_image
-#    X /= std_image
     return X
 
 
@@ -204,7 +166,7 @@ tf.reset_default_graph()
 
 batch_size = 128
 # our noise dimension
-noise_dim = 96
+noise_dim = 192
 
 # placeholders for images from the training dataset
 x = tf.placeholder(tf.float32, [None, 32,32,3])
@@ -231,25 +193,20 @@ D_extra_step = tf.get_collection(tf.GraphKeys.UPDATE_OPS,'discriminator')
 G_extra_step = tf.get_collection(tf.GraphKeys.UPDATE_OPS,'generator')
 
 def show_images_cifar(images,iter):
-    global mean_image
-    global std_image
-    #images = np.reshape(images, [images.shape[0], -1])  # images reshape to (batch_size, D)
     sqrtn = int(np.ceil(np.sqrt(images.shape[0])))
-    #sqrtimg = int(np.ceil(np.sqrt(images.shape[1])/3))
-
     fig = plt.figure(figsize=(sqrtn, sqrtn))
     gs = gridspec.GridSpec(sqrtn, sqrtn)
     gs.update(wspace=0.05, hspace=0.05)
 
     for i, img in enumerate(images):
-#        img *= std_image
-#        img += mean_image
+        img *= 128
+        img += 128
         ax = plt.subplot(gs[i])
         plt.axis('off')
         ax.set_xticklabels([])
         ax.set_yticklabels([])
         ax.set_aspect('equal')
-        plt.imshow(img)
+        plt.imshow(img.astype('uint8'))
     plt.close()
     fig.savefig('progress/temp'+str(int(iter))+'.png', dpi=fig.dpi)
     return
@@ -291,9 +248,6 @@ def run_cifar_gan(sess, G_train_step, G_loss, D_train_step, D_loss, G_extra_step
 
     fig = show_images_cifar(samples[:16],it/show_every)
     plt.show()
-
-
-
 
 with get_session() as sess:
     sess.run(tf.global_variables_initializer())
